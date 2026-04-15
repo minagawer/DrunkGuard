@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -248,9 +249,12 @@ fun StatusCard(guardActive: Boolean, allPermissionsGranted: Boolean = true) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // アクティブ時はシールドがふわふわスケールパルス
+            val emojiScale = if (guardActive) 0.92f + pulseAlpha * 0.12f else 1f
             Text(
                 text = if (guardActive) "🛡️" else "🌙",
-                fontSize = 64.sp
+                fontSize = 64.sp,
+                modifier = Modifier.scale(emojiScale)
             )
             Spacer(modifier = Modifier.height(20.dp))
             if (guardActive) {

@@ -6,15 +6,26 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +36,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
@@ -45,6 +57,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -121,6 +134,33 @@ fun SobrietyCheckScreen(onSuccess: () -> Unit, onCancel: () -> Unit) {
     var feedback by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
 
+    // シェイクアニメーション
+    var shakeKey by remember { mutableIntStateOf(0) }
+    val shakeOffset = remember { Animatable(0f) }
+    LaunchedEffect(shakeKey) {
+        if (shakeKey > 0) {
+            repeat(4) { i ->
+                shakeOffset.animateTo(
+                    targetValue = if (i % 2 == 0) 14f else -14f,
+                    animationSpec = tween(65, easing = LinearEasing)
+                )
+            }
+            shakeOffset.animateTo(0f, animationSpec = tween(65))
+        }
+    }
+
+    // 🧠 バウンスアニメーション
+    val brainTransition = rememberInfiniteTransition(label = "brainBounce")
+    val brainOffsetY by brainTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = -7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(550, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "brainOffsetY"
+    )
+
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
@@ -151,6 +191,7 @@ fun SobrietyCheckScreen(onSuccess: () -> Unit, onCancel: () -> Unit) {
         } else {
             isError = true
             feedback = "❌ 不正解。最初からやり直し"
+            shakeKey++
             currentStep = 1
         }
     }
@@ -169,7 +210,11 @@ fun SobrietyCheckScreen(onSuccess: () -> Unit, onCancel: () -> Unit) {
             // ── Header ────────────────────────────────────────────────────────
             Spacer(modifier = Modifier.height(32.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("🧠", fontSize = 32.sp)
+                Text(
+                    "🧠",
+                    fontSize = 32.sp,
+                    modifier = Modifier.offset(y = brainOffsetY.dp)
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "素面チェック",
@@ -230,6 +275,7 @@ fun SobrietyCheckScreen(onSuccess: () -> Unit, onCancel: () -> Unit) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .offset(x = shakeOffset.value.dp)
                     .clip(RoundedCornerShape(28.dp))
                     .background(BgCard)
                     .border(1.dp, BgBorder, RoundedCornerShape(28.dp))
@@ -244,14 +290,24 @@ fun SobrietyCheckScreen(onSuccess: () -> Unit, onCancel: () -> Unit) {
                         letterSpacing = 1.5.sp
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = question.text,
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
-                        textAlign = TextAlign.Center,
-                        letterSpacing = 1.sp
-                    )
+                    AnimatedContent(
+                        targetState = question,
+                        transitionSpec = {
+                            (slideInHorizontally { it / 2 } + fadeIn(tween(220))).togetherWith(
+                                slideOutHorizontally { -it / 2 } + fadeOut(tween(180))
+                            )
+                        },
+                        label = "questionTransition"
+                    ) { q ->
+                        Text(
+                            text = q.text,
+                            fontSize = 42.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            textAlign = TextAlign.Center,
+                            letterSpacing = 1.sp
+                        )
+                    }
                     Spacer(modifier = Modifier.height(28.dp))
                     OutlinedTextField(
                         value = userInput,

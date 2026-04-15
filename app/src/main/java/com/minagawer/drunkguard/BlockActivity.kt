@@ -6,6 +6,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -22,9 +31,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +79,44 @@ class BlockActivity : ComponentActivity() {
 
 @Composable
 fun BlockScreen(onGoHome: () -> Unit) {
+    // 🔒アイコンが左右に揺れ続けるスウィング
+    val infiniteTransition = rememberInfiniteTransition(label = "blockAnim")
+    val lockRotation by infiniteTransition.animateFloat(
+        initialValue = -12f,
+        targetValue = 12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "lockRotation"
+    )
+    // カードのボーダーが明滅するパルス
+    val borderAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "borderAlpha"
+    )
+
+    // 画面表示時のフェードイン＆スプリングスケール
+    val contentScale = remember { Animatable(0.82f) }
+    val contentAlpha = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        contentAlpha.animateTo(1f, animationSpec = tween(350))
+    }
+    LaunchedEffect(Unit) {
+        contentScale.animateTo(
+            1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -76,12 +129,19 @@ fun BlockScreen(onGoHome: () -> Unit) {
             .padding(horizontal = 32.dp)
     ) {
         Column(
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier
+                .align(Alignment.Center)
+                .scale(contentScale.value)
+                .alpha(contentAlpha.value),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             // ── Icon ──────────────────────────────────────────────────────────
-            Text(text = "🔒", fontSize = 72.sp)
+            Text(
+                text = "🔒",
+                fontSize = 72.sp,
+                modifier = Modifier.rotate(lockRotation)
+            )
 
             // ── Title ─────────────────────────────────────────────────────────
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -107,7 +167,7 @@ fun BlockScreen(onGoHome: () -> Unit) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(Color(0xFF1A0707))
-                    .border(1.dp, RedBorder, RoundedCornerShape(20.dp))
+                    .border(1.dp, RedBorder.copy(alpha = borderAlpha), RoundedCornerShape(20.dp))
                     .padding(horizontal = 24.dp, vertical = 20.dp)
             ) {
                 Text(
